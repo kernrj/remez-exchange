@@ -1,0 +1,16 @@
+.idea
+*~
+\#*
+remez_export.h
+cmake-build-*
+CMakeCache.txt
+CMakeFiles
+cmake_install.cmake
+libremez.a
+libremez.so
+libremez.dll
+libremez.dylib
+Testing
+build.ninja
+Makefile
+install_manifest.txt
