@@ -44,8 +44,6 @@ typedef enum {
   RemezOutOfMemory,
 } RemezStatus;
 
-const char* remezStatusToString(RemezStatus status);
-
 typedef struct RemezBand {
   double lowFrequency;
   double highFrequency;
@@ -53,6 +51,13 @@ typedef struct RemezBand {
   double highFrequencyResponse;
   double weight;
 } RemezBand;
+
+/**
+ * Get a human-readable string for a status code.
+ */
+REMEZ_C_LINKAGE
+REMEZ_PUBLIC
+const char* remezStatusToString(RemezStatus status);
 
 /**
  * Calculates the optimal (in the Chebyshev/minimax sense)
