@@ -757,14 +757,6 @@ RemezStatus remez(
     size_t addToGridDensityLong = lrint(addToGridDensity);
 
     gridSize += addToGridDensityLong;
-    printf(
-        "lo [%f] hi [%f] diff [%f] add [%f] rounded [%zu] new density [%zu]\n",
-        band->lowFrequency,
-        band->highFrequency,
-        band->highFrequency - band->lowFrequency,
-        addToGridDensity,
-        addToGridDensityLong,
-        gridDensity);
   }
 
   if (symmetry == NEGATIVE) {
