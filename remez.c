@@ -189,13 +189,18 @@ static RemezStatus CreateDenseGrid(
  * size_t Ext[]    - Extremal indexes to dense frequency grid [r+1]
  ********************/
 
-static RemezStatus InitialGuess(size_t* Ext, size_t extSize, size_t gridsize) {
+static RemezStatus InitialGuess(size_t r, size_t* Ext, size_t extSize, size_t gridsize) {
   if (gridsize == 0) {
     fprintf(stderr, "Grid size is too small\n");
     return RemezInvalidParameter;
   }
 
-  const size_t r = extSize - 1;
+  if (r >= extSize) {
+    fprintf(stderr, "r [%zu] is out of range. Max [%zu].\n",
+            r, extSize - 1);
+    return RemezInvalidParameter;
+  }
+
   for (size_t i = 0; i < extSize; i++) {
     Ext[i] = i * (gridsize - 1) / r;
   }
@@ -222,6 +227,7 @@ static RemezStatus InitialGuess(size_t* Ext, size_t extSize, size_t gridsize) {
  * double y[]    - 'C' in Oppenheim & Schafer [r+1]
  ***********************/
 static RemezStatus CalcParms(
+    size_t r,
     const size_t* Ext,
     size_t extSize,
     const double* Grid,
@@ -246,7 +252,10 @@ static RemezStatus CalcParms(
     return RemezInvalidParameter;
   }
 
-  const size_t r = extSize - 1;
+  if (r >= extSize) {
+    fprintf(stderr, "r [%zu] is out of range. Max [%zu].\n", r, extSize - 1);
+    return RemezInvalidParameter;
+  }
 
   /*
    * Find x[]
@@ -318,6 +327,7 @@ static RemezStatus CalcParms(
 
 static RemezStatus ComputeA(
     double freq,
+    size_t r,
     const double* ad,
     size_t adSize,
     const double* x,
@@ -325,10 +335,13 @@ static RemezStatus ComputeA(
     const double* y,
     size_t ySize,
     double* outA) {
-  const size_t r = adSize - 1;
-
   if (adSize != xSize || adSize != ySize || outA == NULL) {
     fprintf(stderr, "ad buffer size mismatch in ComputeA()\n");
+    return RemezInvalidParameter;
+  }
+
+  if (r >= adSize) {
+    fprintf(stderr, "r [%zu] is out of range. Max [%zu].\n", r, adSize - 1);
     return RemezInvalidParameter;
   }
 
@@ -375,6 +388,7 @@ static RemezStatus ComputeA(
  * double E[]    - Error function on dense grid [gridsize]
  ************************/
 static RemezStatus CalcError(
+    size_t r,
     const double* ad,
     size_t adSize,
     const double* x,
@@ -401,7 +415,8 @@ static RemezStatus CalcError(
 
   for (size_t i = 0; i < gridSize; i++) {
     double A = 0.0;
-    RemezStatus status = ComputeA(Grid[i], ad, adSize, x, xSize, y, ySize, &A);
+    RemezStatus status =
+        ComputeA(Grid[i], r, ad, adSize, x, xSize, y, ySize, &A);
     if (status != RemezSuccess) {
       return status;
     }
@@ -437,6 +452,7 @@ static RemezStatus CalcError(
  * size_t    Ext[]    - New indexes to extremal frequencies [r+1]
  ************************/
 static RemezStatus Search(
+    size_t r,
     size_t* Ext,
     size_t extSize,
     double* E,
@@ -445,7 +461,6 @@ static RemezStatus Search(
   size_t lastGridIndex, extra;
   size_t k = 0;
   const size_t gridsize = eSize;
-  const size_t r = extSize - 1;
   // size_t up, alt;
   const size_t foundExtSize = gridsize;  // originally 2r
   size_t* foundExt =
@@ -680,12 +695,17 @@ static RemezStatus FreqSample(
  ********************/
 
 static int isDone(
+    size_t r,
     const size_t* Ext,
     size_t ExtSize,
     const double* E,
     size_t ESize) {
-  const size_t r = ExtSize - 1;
   double min, max, current;
+
+  if (r >= ExtSize) {
+    fprintf(stderr, "r [%zu] is out of range. Max [%zu].\n", r, ExtSize - 1);
+    return RemezInvalidParameter;
+  }
 
   min = max = fabs(E[Ext[0]]);
   for (size_t i = 1; i <= r; i++) {
@@ -811,7 +831,7 @@ RemezStatus remez(
     goto end;
   }
 
-  status = InitialGuess(Ext, extSize, gridSize);
+  status = InitialGuess(r, Ext, extSize, gridSize);
   if (status != RemezSuccess) {
     goto end;
   }
@@ -862,6 +882,7 @@ RemezStatus remez(
    */
   for (size_t iter = 0; iter < maxIterations; iter++) {
     status = CalcParms(
+        r,
         Ext,
         extSize,
         Grid,
@@ -881,6 +902,7 @@ RemezStatus remez(
     }
 
     status = CalcError(
+        r,
         ad,
         adSize,
         x,
@@ -899,23 +921,24 @@ RemezStatus remez(
       goto end;
     }
 
-    status = Search(Ext, extSize, E, eSize);
+    status = Search(r, Ext, extSize, E, eSize);
     if (status != RemezSuccess) {
       goto end;
     }
 
     //      for(i=0; i <= r; i++) assert(Ext[i]<gridsize);
-    if (isDone(Ext, extSize, E, eSize)) {
+    if (isDone(r, Ext, extSize, E, eSize)) {
       break;
     }
   }
 
-  if (!isDone(Ext, extSize, E, eSize)) {
+  if (!isDone(r, Ext, extSize, E, eSize)) {
     status = RemezDidNotConverge;
     goto end;
   }
 
   status = CalcParms(
+      r,
       Ext,
       extSize,
       Grid,
@@ -958,6 +981,7 @@ RemezStatus remez(
 
     status = ComputeA(
         (double)i / (double)outTapsLength,
+        r,
         ad,
         adSize,
         x,
