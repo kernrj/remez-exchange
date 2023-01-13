@@ -20,7 +20,7 @@
 #define REMEZ_REMEZ_H_
 
 #include <stddef.h>
-#include "remez_export.h"
+#include <remez/remez_export.h>
 
 #ifdef __cplusplus
 #define REMEZ_C_LINKAGE extern "C"
