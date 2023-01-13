@@ -1,7 +1,7 @@
 .idea
 *~
 \#*
-remez_export.h
+include/remez/remez_export.h
 cmake-build-*
 CMakeCache.txt
 CMakeFiles

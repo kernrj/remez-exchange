@@ -1,55 +1,78 @@
 cmake_minimum_required(VERSION 3.14)
 
-project(remez)
+set(LIB_PROJECT_NAME remez)
+set(LIB_TARGET_NAME ${LIB_PROJECT_NAME})
+set(PROJECT_MACRO_PREFIX REMEZ)
+
+project(${LIB_PROJECT_NAME})
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
-set( CMAKE_CXX_VISIBLITY_PRESET hidden )
-set( CMAKE_VISIBILITY_INLINES_HIDDEN 1 )
-
-add_library(
-    remez
-    remez.c
-    remez.h
+set(
+    LIB_SOURCES
+    src/remez.c
 )
 
-include( GenerateExportHeader )
+# Common
 
-set( EXPORT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/remez_export.h" )
+project(${LIB_PROJECT_NAME})
 
+set(LIB_DEV_PUBLIC_HEADER_DIR "${PROJECT_SOURCE_DIR}/include")
+file(GLOB_RECURSE HEADERS "${LIB_DEV_PUBLIC_HEADER_DIR}/${LIB_TARGET_NAME}" *.h)
+
+add_library(
+    ${LIB_TARGET_NAME}
+    ${HEADERS}
+    ${LIB_SOURCES}
+)
+
+set(EXPORT_FILE "${PROJECT_BINARY_DIR}/${LIB_PROJECT_NAME}_export.h")
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
+message("EXPORT_FILE '${EXPORT_FILE}'")
+include(GenerateExportHeader)
 generate_export_header(
-    remez
-    BASE_NAME REMEZ
-    EXPORT_MACRO_NAME REMEZ_PUBLIC
-    NO_EXPORT_MACRO_NAME REMEZ_PRIVATE
-    STATIC_DEFINE REMEZ_STATIC_BUILD
+    ${LIB_TARGET_NAME}
+    BASE_NAME ${PROJECT_MACRO_PREFIX}
+    EXPORT_MACRO_NAME ${PROJECT_MACRO_PREFIX}_PUBLIC
+    NO_EXPORT_MACRO_NAME ${PROJECT_MACRO_PREFIX}_PRIVATE
+    STATIC_DEFINE ${PROJECT_MACRO_PREFIX}_STATIC_BUILD
     EXPORT_FILE_NAME ${EXPORT_FILE}
 )
 
-target_include_directories( remez INTERFACE "$<INSTALL_INTERFACE:include>" )
+target_include_directories(${LIB_TARGET_NAME} INTERFACE "$<INSTALL_INTERFACE:include>")
+target_include_directories(${LIB_TARGET_NAME} BEFORE PRIVATE "${PROJECT_SOURCE_DIR}/include")
 
-if( WIN32 )
+if (WIN32)
     install(
-        TARGETS remez
-        EXPORT remez
+        TARGETS ${LIB_TARGET_NAME}
+        EXPORT ${LIB_TARGET_NAME}
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION bin
         ARCHIVE DESTINATION lib
     )
 
-    install( FILES $<TARGET_PDB_FILE:remez> DESTINATION bin OPTIONAL )
-else()
+    install(FILES $<TARGET_PDB_FILE:${LIB_TARGET_NAME}> DESTINATION bin OPTIONAL)
+else ()
     install(
-        TARGETS remez
-        EXPORT remez
+        TARGETS ${LIB_TARGET_NAME}
+        EXPORT ${LIB_TARGET_NAME}
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib
     )
-endif()
+endif ()
 
-set( PUBLIC_HEADERS remez.h remez_export.h )
+install(DIRECTORY "${LIB_DEV_PUBLIC_HEADER_DIR}/${LIB_TARGET_NAME}" DESTINATION include/)
+install(FILES "${EXPORT_FILE}" DESTINATION include/)
+install(EXPORT "${LIB_TARGET_NAME}" DESTINATION "lib/cmake/${LIB_TARGET_NAME}" FILE "${LIB_TARGET_NAME}-config.cmake")
 
-install( FILES ${PUBLIC_HEADERS} DESTINATION include/remez )
-install( EXPORT remez DESTINATION lib/cmake/remez FILE remez-config.cmake )
+option(USE_TESTS "Enable unit testing" ON)
+if (USE_TESTS AND IS_DIRECTORY "${PROJECT_SOURCE_DIR}/tests")
+    message("Tests enabled.")
+    enable_testing()
+    add_subdirectory(tests)
+endif ()
+
+# End of common section

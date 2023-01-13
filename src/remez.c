@@ -37,7 +37,7 @@
  *  of the code---it may also have some problems.
  *************************************************************************/
 
-#include "remez.h"
+#include "remez/remez.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -722,7 +722,11 @@ static int isDone(
 
   return (((max - min) / max) < 0.0001);
 }
-
+// remez(double h[], int *numtaps,
+//      int *numband, const double bands[],
+//      const double des[], const double weight[],
+//      int *type, int *griddensity)
+//assert(remez(15,[0,0.3,0.4,1],[1,1,0,0]),b,1e-14);
 RemezStatus remez(
     double* outTaps,
     size_t outTapsLength,
@@ -926,7 +930,13 @@ RemezStatus remez(
       goto end;
     }
 
-    //      for(i=0; i <= r; i++) assert(Ext[i]<gridsize);
+    for(size_t i=0; i <= r; i++) {
+      if (Ext[i] >= gridSize) {
+        fprintf(stderr, "Index [%zu] out of range [0, %zu]\n", Ext[i], r);
+        return RemezInternalError;
+      }
+    }
+
     if (isDone(r, Ext, extSize, E, eSize)) {
       break;
     }
