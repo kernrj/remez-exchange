@@ -28,10 +28,10 @@ add_library(
     ${LIB_SOURCES}
 )
 
-set(EXPORT_FILE "${PROJECT_BINARY_DIR}/${LIB_PROJECT_NAME}_export.h")
+set(EXPORT_FILE "${LIB_DEV_PUBLIC_HEADER_DIR}/${LIB_PROJECT_NAME}/${LIB_PROJECT_NAME}_export.h")
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
-message("EXPORT_FILE '${EXPORT_FILE}'")
+
 include(GenerateExportHeader)
 generate_export_header(
     ${LIB_TARGET_NAME}
@@ -65,7 +65,6 @@ else ()
 endif ()
 
 install(DIRECTORY "${LIB_DEV_PUBLIC_HEADER_DIR}/${LIB_TARGET_NAME}" DESTINATION include/)
-install(FILES "${EXPORT_FILE}" DESTINATION include/)
 install(EXPORT "${LIB_TARGET_NAME}" DESTINATION "lib/cmake/${LIB_TARGET_NAME}" FILE "${LIB_TARGET_NAME}-config.cmake")
 
 option(USE_TESTS "Enable unit testing" ON)
