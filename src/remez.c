@@ -618,11 +618,16 @@ static RemezStatus FreqSample(
     double* outTaps,
     size_t outTapsLength,
     Symmetry symmetry) {
-  const size_t N = aLength;
+  const size_t N = outTapsLength;
   double M = (N - 1.0) / 2.0;
 
   if (outTapsLength < N) {
     fprintf(stderr, "Taps buffer is too small\n");
+    return RemezInternalError;
+  }
+
+  if (aLength <= (N / 2 - 1) || aLength <= floor(M)) {
+    fprintf(stderr, "input taps length [%zu] is too small.\n", aLength);
     return RemezInternalError;
   }
 
@@ -746,6 +751,7 @@ RemezStatus remez(
   double* x = NULL;
   double* y = NULL;
   double* ad = NULL;
+  double c;
 
   Symmetry symmetry;
 
@@ -772,12 +778,13 @@ RemezStatus remez(
   outTaps[0] = 32;
   /*
    * Predict dense grid size in advance for memory allocation
+   *   .5 is so we round up, not truncate
    */
   gridSize = 0;
   for (size_t i = 0; i < bandCount; i++) {
     const RemezBand* band = &bands[i];
-    double addToGridDensity = (double)(2 * r * gridDensity)
-                              * (band->highFrequency - band->lowFrequency);
+    double bandwidth = band->highFrequency - band->lowFrequency;
+    double addToGridDensity = 2.0 * r * gridDensity * bandwidth;
     size_t addToGridDensityLong = lrint(addToGridDensity);
 
     gridSize += addToGridDensityLong;
@@ -856,7 +863,6 @@ RemezStatus remez(
    * For odd or Negative symmetry filters, alter the
    * D[] and W[] according to Parks McClellan
    */
-  double c;
   if (symmetry == POSITIVE) {
     if (outTapsLength % 2 == 0) {
       for (size_t i = 0; i < gridSize; i++) {
