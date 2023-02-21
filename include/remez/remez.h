@@ -19,8 +19,8 @@
 #ifndef REMEZ_REMEZ_H_
 #define REMEZ_REMEZ_H_
 
-#include <stddef.h>
 #include <remez/remez_export.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 #define REMEZ_C_LINKAGE extern "C"
@@ -131,7 +131,16 @@ RemezStatus remezGenerateLowPassTaps(
 
 REMEZ_C_LINKAGE
 REMEZ_PUBLIC
-double remezNormalizeFrequency(
+RemezStatus remezGenerateSingleBandPassTaps(
+    double sampleFrequency,
+    double lowCutoffFrequency,
+    double highCutoffFrequency,
+    double transitionWidth,
+    double dbAttenuation,
+    double* taps,
+    size_t numTaps);
+
+REMEZ_C_LINKAGE REMEZ_PUBLIC double remezNormalizeFrequency(
     double frequencyToNormalize,
     double samplingFrequency);
 

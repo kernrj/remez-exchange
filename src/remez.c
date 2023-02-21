@@ -53,6 +53,14 @@ typedef enum {
 #define Pi 3.1415926535897932
 #define PiTimes2 6.2831853071795865
 
+#define RET_ON_ERR(remezCmd__)                 \
+  do {                                         \
+    RemezStatus retOnErrStatus__ = remezCmd__; \
+    if (retOnErrStatus__ != RemezSuccess) {    \
+      return retOnErrStatus__;                 \
+    }                                          \
+  } while (0)
+
 const char* remezStatusToString(RemezStatus status) {
   static char unknownBuffer[64];
 
@@ -189,15 +197,18 @@ static RemezStatus CreateDenseGrid(
  * size_t Ext[]    - Extremal indexes to dense frequency grid [r+1]
  ********************/
 
-static RemezStatus InitialGuess(size_t r, size_t* Ext, size_t extSize, size_t gridsize) {
+static RemezStatus InitialGuess(
+    size_t r,
+    size_t* Ext,
+    size_t extSize,
+    size_t gridsize) {
   if (gridsize == 0) {
     fprintf(stderr, "Grid size is too small\n");
     return RemezInvalidParameter;
   }
 
   if (r >= extSize) {
-    fprintf(stderr, "r [%zu] is out of range. Max [%zu].\n",
-            r, extSize - 1);
+    fprintf(stderr, "r [%zu] is out of range. Max [%zu].\n", r, extSize - 1);
     return RemezInvalidParameter;
   }
 
@@ -731,7 +742,7 @@ static int isDone(
 //      int *numband, const double bands[],
 //      const double des[], const double weight[],
 //      int *type, int *griddensity)
-//assert(remez(15,[0,0.3,0.4,1],[1,1,0,0]),b,1e-14);
+// assert(remez(15,[0,0.3,0.4,1],[1,1,0,0]),b,1e-14);
 RemezStatus remez(
     double* outTaps,
     size_t outTapsLength,
@@ -936,7 +947,7 @@ RemezStatus remez(
       goto end;
     }
 
-    for(size_t i=0; i <= r; i++) {
+    for (size_t i = 0; i <= r; i++) {
       if (Ext[i] >= gridSize) {
         fprintf(stderr, "Index [%zu] out of range [0, %zu]\n", Ext[i], r);
         return RemezInternalError;
@@ -1024,6 +1035,42 @@ end:
   return status;
 }
 
+static RemezStatus checkFrequency(
+    float sampleFrequency,
+    float frequency,
+    float transitionWidth,
+    const char* frequencyName) {
+  float nyquistFrequency = sampleFrequency / 2.0f;
+
+  if (frequency > nyquistFrequency) {
+    fprintf(
+        stderr,
+        "%s frequency [%f] cannot exceed the Nyquist frequency [%f] for "
+        "sample frequency [%f]\n",
+        frequencyName,
+        frequency,
+        nyquistFrequency,
+        sampleFrequency);
+
+    return RemezInvalidParameter;
+  } else if (frequency + transitionWidth > nyquistFrequency) {
+    fprintf(
+        stderr,
+        "%s frequency [%f] plus the transition width [%f] cannot exceed the "
+        "Nyquist frequency [%f] for "
+        "sample frequency [%f]\n",
+        frequencyName,
+        transitionWidth,
+        frequency,
+        nyquistFrequency,
+        sampleFrequency);
+
+    return RemezInvalidParameter;
+  }
+
+  return RemezSuccess;
+}
+
 RemezStatus remezGenerateLowPassTaps(
     double sampleFrequency,
     double cutoffFrequency,
@@ -1082,6 +1129,77 @@ RemezStatus remezGenerateLowPassTaps(
   bands[1].lowFrequencyResponse = 0.0f;
   bands[1].highFrequencyResponse = 0.0f;
   bands[1].weight = 1.0f;
+
+  const int32_t gridDensity = 16;
+  const int32_t maxIterations = 1000;
+  status = remez(
+      taps,
+      numTaps,
+      bands,
+      numBands,
+      RemezFilterTypeBandpass,
+      gridDensity,
+      maxIterations);
+  if (status != RemezSuccess) {
+    return status;
+  }
+
+  return RemezSuccess;
+}
+
+RemezStatus remezGenerateSingleBandPassTaps(
+    double sampleFrequency,
+    double lowCutoffFrequency,
+    double highCutoffFrequency,
+    double transitionWidth,
+    double dbAttenuation,
+    double* taps,
+    size_t numTaps) {
+  RemezStatus status = RemezSuccess;
+  const size_t numBands = 3;
+  RemezBand bands[numBands];
+
+  // kaiserWindowLength(dbAttenuation, transitionWidth)
+  //  remez() takes normalized frequencies where 0.5 is the Nyquist rate.
+  const double nyquistFrequency = sampleFrequency / 2.0;
+
+  RET_ON_ERR(checkFrequency(
+      sampleFrequency,
+      lowCutoffFrequency,
+      transitionWidth,
+      "Low cutoff frequency"));
+
+  RET_ON_ERR(checkFrequency(
+      sampleFrequency,
+      highCutoffFrequency,
+      transitionWidth,
+      "High cutoff frequency"));
+
+  memset(bands, 0, sizeof(bands));
+
+  bands[0].lowFrequency = 0.0f;
+  bands[0].highFrequency = remezNormalizeFrequency(
+      lowCutoffFrequency - transitionWidth,
+      sampleFrequency);
+  bands[0].lowFrequencyResponse = 0.0f;
+  bands[0].highFrequencyResponse = 0.0f;
+  bands[0].weight = 1.0f;
+
+  bands[1].lowFrequency =
+      remezNormalizeFrequency(lowCutoffFrequency, sampleFrequency);
+  bands[1].highFrequency =
+      remezNormalizeFrequency(highCutoffFrequency, sampleFrequency);
+  bands[1].lowFrequencyResponse = 1.0f;
+  bands[1].highFrequencyResponse = 1.0f;
+  bands[1].weight = 1.0f;
+
+  bands[2].lowFrequency = remezNormalizeFrequency(
+      highCutoffFrequency + transitionWidth,
+      sampleFrequency);
+  bands[2].highFrequency = 0.5f;
+  bands[2].lowFrequencyResponse = 0.0f;
+  bands[2].highFrequencyResponse = 0.0f;
+  bands[2].weight = 1.0f;
 
   const int32_t gridDensity = 16;
   const int32_t maxIterations = 1000;
